@@ -2,10 +2,11 @@
   tower_project:
     name: "{{ proj_name }}"
     organization: Default
-    scm_update_on_launch: True
+    scm_update_on_launch: False
     tower_host: tower1.{{tower_GUID}}.example.opentlc.com
     tower_username: admin
     tower_password: r3dh4t1!
+
     
 - name: Machine Credentail to connect to workstation using openstack.pub
   tower_credential:
