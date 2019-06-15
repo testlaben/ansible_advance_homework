@@ -3,19 +3,23 @@
 # tasks file for osp.servers
 - name: debug with vars
   debug:
-    msg: "the image name is {{ item.image }}"
-  loop: "{{ osp_servers }}"
+    msg: "the image name is {{ item['image'] }}"
+  loop:
+    - "{{ osp_servers.frontend }}"
+    - "{{ osp_servers.app1 }}"
+    - "{{ osp_servers.app2 }}"
+    - "{{ osp_servers.db }}"
   tags: debug
 
 - name: Create new server instances and attaches them a network and passes metadata to the instance
   os_server:
     cloud: ospcloud
-    name: "{{ item.name }}"
-    image: "{{ item.image }}"
+    name: "{{ item['name'] }}"
+    image: "{{ item['image'] }}"
     meta: "group={{ item.meta[0].group }},deployment_name={{ item.meta[0].deployment_name }}"
-    flavor: m2.small
-    security_groups: "{{ item.security_group }}"
-    key_name: ansible_ssh
+    flavor: "{{ item['flavor'] }}"
+    security_groups: "{{ item.['security_group'] }}"
+    key_name: "{{ item['key_name'] }}"
     wait: yes
     nics:
     - net-name: int_network
@@ -26,44 +30,37 @@
       cat /tmp/openstack.pub >> /home/cloud-user/.ssh/authorized_keys
       curl -o /tmp/internal.repo http://www.opentlc.com/download/ansible_bootcamp/repo/internal.repo
       cp /tmp/internal.repo /etc/yum.repos.d/internal.repo
-  loop: "{{ osp_servers }}"
   async: 900
   poll: 0
   register: r_instances
+  loop: 
+    - "{{ osp_servers.frontend }}"
+    - "{{ osp_servers.app1 }}"
+    - "{{ osp_servers.app2 }}"
+    - "{{ osp_servers.db }}"
 
-- name: print r_instances
-  debug:
-    var: item
-  loop: "{{ r_instances.results }}"
-
-- name: Wait for OSP instance creation to complete
-  async_status: jid={{ item.ansible_job_id }}
-  register: r_wait
-  until: r_wait.finished
-  retries: 900
-  loop: "{{ r_instances.results }}"
-
-- name: print r_instances.instance_name
-  debug:
-    var: "{{ item.instance_name }}"
-  loop: "{{ r_instances }}"
+# - name: Wait for OSP instance creation to complete
+#   async_status: jid={{ item.ansible_job_id }}
+#   register: r_wait
+#   until: r_wait.finished
+#   retries: 900
+#   loop: "{{ r_instances.results }}"
 
 - name: Add floating IP to Servers
   os_floating_ip:
     cloud: ospcloud
     state: present
     reuse: yes
-    server: "{{ item.instance_name }}"
+    server: "{{ item['name'] }}"
     network: ext_network
     wait: true
     timeout: 180
-  loop: "{{ r_instances }}"
   register: r_floating_ips
-
-- name: print r_instances
-  debug:
-    var: item
-  loop: "{{ r_floating_ips }}"
+  loop:
+    - "{{ osp_servers.frontend }}"
+    - "{{ osp_servers.app1 }}"
+    - "{{ osp_servers.app2 }}"
+    - "{{ osp_servers.db }}"
 
 - name: Wait for server to be available
   wait_for:
@@ -71,5 +68,8 @@
     port: 22
     search_regex: OpenSSH
     timeout: 600
-  loop: "{{ r_floating_ips.results }}"
-  delegate_to: "{{ inventory_hostname }}"
+  loop: 
+    - "{{ r_floating_ips.results[0] }}"
+    - "{{ r_floating_ips.results[1] }}"
+    - "{{ r_floating_ips.results[2] }}"
+    - "{{ r_floating_ips.results[3] }}"
